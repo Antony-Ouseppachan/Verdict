@@ -1,0 +1,63 @@
+:root {
+  /* Futuristic Obsidian & Cyber Emerald Theme */
+  --color-bg-base: #06090e;
+  --color-bg-surface: #0c121d;
+  --color-bg-surface-elevated: #111a29;
+  --color-bg-surface-glass: rgba(12, 18, 29, 0.85);
+
+  --color-border-subtle: rgba(255, 255, 255, 0.07);
+  --color-border-hover: rgba(255, 255, 255, 0.14);
+  --color-border-focus: #38bdf8;
+  --color-border-glow: rgba(16, 185, 129, 0.35);
+
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-text-brand: #38bdf8;
+
+  /* Cyber Accents */
+  --color-emerald-glow: #10b981;
+  --color-emerald-aura: rgba(16, 185, 129, 0.16);
+  --color-cyan-accent: #06b6d4;
+  --color-cyan-aura: rgba(6, 182, 212, 0.12);
+  --color-amber-glow: #f59e0b;
+  --color-amber-aura: rgba(245, 158, 11, 0.16);
+  --color-crimson-glow: #ef4444;
+  --color-crimson-aura: rgba(239, 68, 68, 0.18);
+  --color-standby: #475569;
+  --color-standby-aura: rgba(71, 85, 105, 0.14);
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Geist Mono', Menlo, Consolas, monospace;
+
+  --font-size-2xs: 10px;
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+
+  /* Layout & Sizing */
+  --popup-width: 340px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Animation Curves */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-pulse: 3000ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms !important;
+    --duration-normal: 0ms !important;
+    --duration-pulse: 0ms !important;
+  }
+}

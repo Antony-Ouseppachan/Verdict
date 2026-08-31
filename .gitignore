@@ -1,0 +1,34 @@
+# Root .gitignore for Verdict Monorepo
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build artifacts & Distributables
+dist/
+build/
+release/
+*.zip
+
+# Environment & local files
+.env
+.env.local
+.env.*.local
+*.local
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# Cache
+.eslintcache
+*.tsbuildinfo
