@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { ActiveTabInfo } from '../../shared/types/decision.ts';
-import { isValidBrowsingUrl, isLocalhostUrl } from '../../security/url.ts';
+import { isLocalhostUrl, classifyPage } from '../../security/url.ts';
 import { t } from '../../shared/utils/i18n.ts';
 
 interface StatusIndicatorProps {
@@ -16,7 +16,37 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ enabled }) => 
     if (typeof chrome !== 'undefined' && chrome.tabs?.query) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tab = tabs[0];
-        if (tab && tab.url && isValidBrowsingUrl(tab.url)) {
+        if (tab && tab.url) {
+          const pageType = classifyPage(tab.url);
+          if (pageType === 'INTERNAL_BROWSER_PAGE' || pageType === 'UNSUPPORTED_PAGE') {
+            let hostDisplay = 'Browser System Page';
+            try {
+              const parsed = new URL(tab.url);
+              hostDisplay = parsed.hostname
+                ? `${parsed.protocol}//${parsed.hostname}`
+                : parsed.protocol.replace(':', '') || 'System Page';
+            } catch {
+              hostDisplay = 'System Page';
+            }
+
+            setActiveTab({
+              url: tab.url,
+              hostname: hostDisplay,
+              title: tab.title || 'Browser System Page',
+              decision: {
+                status: 'SAFE',
+                title: 'Browser System Page',
+                message: 'Internal browser system pages are exempt.',
+                action: 'NONE',
+                decisionId: `sys-${tab.id}`,
+                timestamp: Date.now(),
+                pageType: 'INTERNAL_BROWSER_PAGE',
+                reasons: [],
+              },
+            });
+            return;
+          }
+
           try {
             const parsed = new URL(tab.url);
             setActiveTab((prev) => ({
@@ -46,11 +76,17 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ enabled }) => 
     }
   }, []);
 
-  const isLocal = isLocalhostUrl(activeTab?.url);
-  const isHttps = !!activeTab?.url?.startsWith('https://');
+  const pageType = activeTab?.decision?.pageType;
+  const isInternal =
+    pageType === 'INTERNAL_BROWSER_PAGE' ||
+    pageType === 'UNSUPPORTED_PAGE' ||
+    (activeTab?.url && !activeTab.url.startsWith('http'));
+  const isLocal = !isInternal && isLocalhostUrl(activeTab?.url);
+  const isHttps = !isInternal && !!activeTab?.url?.startsWith('https://');
 
   const getSiteStatus = () => {
     if (!enabled) return { label: 'Paused', class: 'paused', desc: 'Protection is paused' };
+    if (isInternal) return { label: 'System Page', class: 'safe', desc: 'Exempt browser system page' };
     if (isLocal) return { label: 'Localhost', class: 'safe', desc: 'Exempt development server' };
     if (!activeTab?.decision) return { label: t('popup', 'looksGood'), class: 'safe', desc: 'No threats detected' };
     const status = activeTab.decision.status;
@@ -85,8 +121,8 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ enabled }) => 
             {activeTab?.hostname || 'Active Tab'}
           </div>
           <div className="verdict-site-sub">
-            <span className={`protocol-pill ${isLocal ? 'proto-local' : isHttps ? 'proto-https' : 'proto-http'}`}>
-              {isLocal ? 'LOCAL' : isHttps ? 'HTTPS' : 'HTTP'}
+            <span className={`protocol-pill ${isInternal ? 'proto-local' : isLocal ? 'proto-local' : isHttps ? 'proto-https' : 'proto-http'}`}>
+              {isInternal ? 'SYSTEM' : isLocal ? 'LOCAL' : isHttps ? 'HTTPS' : 'HTTP'}
             </span>
             <span className="verdict-site-bullet">•</span>
             <span className="verdict-site-desc">{status.desc}</span>

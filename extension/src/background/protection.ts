@@ -1,6 +1,12 @@
 import { createVerdictClient, type VerdictClient } from '../api/client.ts';
 import { EngineUnavailableError } from '../api/errors.ts';
-import { isValidBrowsingUrl, sanitizeAndNormalizeUrl, isLocalhostUrl } from '../security/url.ts';
+import {
+  isValidBrowsingUrl,
+  sanitizeAndNormalizeUrl,
+  isLocalhostUrl,
+  isSearchEngineUrl,
+  classifyPage,
+} from '../security/url.ts';
 import type {
   ActiveTabInfo,
   VerdictAnalysisResponse,
@@ -24,6 +30,7 @@ export class ProtectionCoordinator {
   private client: VerdictClient;
   private deduplicator: RequestDeduplicator<VerdictAnalysisResponse> = new RequestDeduplicator();
   private dismissedDecisions: Set<string> = new Set();
+  private tabBypassedOrigins: Map<number, Set<string>> = new Map();
   private activeDecisions: Map<number, VerdictDecision> = new Map();
   private activeTabUrls: Map<number, { url: string; hostname: string; title?: string }> = new Map();
 
@@ -42,6 +49,73 @@ export class ProtectionCoordinator {
   public dismissWarning(decisionId?: string): void {
     if (decisionId) {
       this.dismissedDecisions.add(decisionId);
+    }
+  }
+
+  public allowBypassUrl(url: string, tabId?: number): void {
+    const origin = this.getOrigin(url);
+    if (tabId && tabId > 0) {
+      if (!this.tabBypassedOrigins.has(tabId)) {
+        this.tabBypassedOrigins.set(tabId, new Set());
+      }
+      this.tabBypassedOrigins.get(tabId)!.add(origin);
+      try {
+        const parsed = new URL(url);
+        this.tabBypassedOrigins.get(tabId)!.add(parsed.hostname);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  public clearBypass(url: string, tabId?: number): void {
+    const origin = this.getOrigin(url);
+    if (tabId && tabId > 0) {
+      this.tabBypassedOrigins.get(tabId)?.delete(origin);
+    } else {
+      this.tabBypassedOrigins.forEach((origins) => origins.delete(origin));
+    }
+  }
+
+  public clearTab(tabId: number): void {
+    this.tabBypassedOrigins.delete(tabId);
+    this.activeDecisions.delete(tabId);
+    this.activeTabUrls.delete(tabId);
+  }
+
+  public isBypassed(url: string, tabId?: number): boolean {
+    if (!tabId || tabId <= 0) {
+      return false;
+    }
+
+    const origin = this.getOrigin(url);
+    const tabOrigins = this.tabBypassedOrigins.get(tabId);
+    if (!tabOrigins) {
+      return false;
+    }
+
+    if (tabOrigins.has(origin)) {
+      return true;
+    }
+
+    try {
+      const parsed = new URL(url);
+      if (tabOrigins.has(parsed.hostname)) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+
+    return false;
+  }
+
+  private getOrigin(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return parsed.origin;
+    } catch {
+      return url;
     }
   }
 
@@ -66,41 +140,46 @@ export class ProtectionCoordinator {
       // 2. Query active tab in the last focused window
       chrome.tabs.query({ active: true, lastFocusedWindow: true }, async (tabs) => {
         const activeTab = tabs[0];
-
-        // If the active tab is not a valid web URL (e.g. extension dashboard, options page, or chrome://)
-        if (!activeTab || !activeTab.url || !isValidBrowsingUrl(activeTab.url)) {
-          // Look for any valid web browsing tab in the window
-          chrome.tabs.query({ lastFocusedWindow: true }, async (allTabs) => {
-            const webTab = allTabs.find((t) => t.url && isValidBrowsingUrl(t.url));
-            if (webTab && webTab.url) {
-              const tabId = webTab.id || -1;
-              let decision = this.activeDecisions.get(tabId);
-              if (!decision) {
-                decision = (await this.analyzeUrl(tabId, webTab.url)) || undefined;
-              }
-              try {
-                const parsed = new URL(webTab.url);
-                const info: ActiveTabInfo = {
-                  url: webTab.url,
-                  hostname: parsed.hostname,
-                  title: webTab.title,
-                  decision,
-                };
-                this.lastRecordedTab = info;
-                resolve(info);
-                return;
-              } catch {
-                // ignore
-              }
-            }
-
-            // Fallback to last recorded tab
-            resolve(this.lastRecordedTab);
-          });
+        if (!activeTab || !activeTab.url) {
+          resolve(this.lastRecordedTab);
           return;
         }
 
         const tabId = activeTab.id || -1;
+        const pageType = classifyPage(activeTab.url);
+
+        // If internal browser page (edge://, chrome://, about:, chrome-extension://, etc.)
+        if (pageType === 'INTERNAL_BROWSER_PAGE' || pageType === 'UNSUPPORTED_PAGE') {
+          let hostDisplay = 'Browser System Page';
+          try {
+            const parsed = new URL(activeTab.url);
+            hostDisplay = parsed.hostname
+              ? `${parsed.protocol}//${parsed.hostname}`
+              : parsed.protocol.replace(':', '') || 'System Page';
+          } catch {
+            hostDisplay = 'System Page';
+          }
+
+          const internalInfo: ActiveTabInfo = {
+            url: activeTab.url,
+            hostname: hostDisplay,
+            title: activeTab.title || 'Browser System Page',
+            decision: {
+              status: 'SAFE',
+              title: 'Browser System Page',
+              message: 'Internal browser pages and extension interfaces are exempt from threat scanning.',
+              action: 'NONE',
+              decisionId: `internal-${tabId}`,
+              timestamp: Date.now(),
+              pageType: 'INTERNAL_BROWSER_PAGE',
+              reasons: [],
+            },
+          };
+          this.lastRecordedTab = internalInfo;
+          resolve(internalInfo);
+          return;
+        }
+
         let decision = this.activeDecisions.get(tabId);
         if (!decision && activeTab.url) {
           decision = (await this.analyzeUrl(tabId, activeTab.url)) || undefined;
@@ -163,6 +242,25 @@ export class ProtectionCoordinator {
       title: signals.page.title,
     });
 
+    // Search Engine Exemption: Search engine result pages are not destination stores
+    if (isSearchEngineUrl(targetUrl)) {
+      logger.debug('Search engine query page detected. Exempt from destination threat scanning.', { targetUrl });
+      const searchDecision: VerdictDecision = {
+        status: 'SAFE',
+        title: 'Search Engine',
+        message: 'Search engine query pages are exempt from destination store analysis.',
+        action: 'NONE',
+        decisionId: `search-${tabId}-${Date.now()}`,
+        timestamp: Date.now(),
+        pageType: 'SEARCH_ENGINE',
+        reasons: [],
+      };
+      this.activeDecisions.set(tabId, searchDecision);
+      updateExtensionBadge(true, 'SAFE');
+      this.dispatchDecisionToTab(tabId, searchDecision);
+      return searchDecision;
+    }
+
     // Localhost Development Exception: Do not scan local development environments
     if (isLocalhostUrl(targetUrl)) {
       logger.debug('Local development server detected. Exempt from threat scanning.', { targetUrl });
@@ -173,6 +271,8 @@ export class ProtectionCoordinator {
         action: 'NONE',
         decisionId: `local-${tabId}-${Date.now()}`,
         timestamp: Date.now(),
+        pageType: 'INTERNAL_BROWSER_PAGE',
+        reasons: [],
       };
       this.activeDecisions.set(tabId, exemptDecision);
       updateExtensionBadge(true, 'SAFE');
@@ -182,12 +282,19 @@ export class ProtectionCoordinator {
 
     const cacheKey = sanitizeAndNormalizeUrl(targetUrl);
 
+    console.log('[Verdict Background] Dispatching threat analysis for:', targetUrl, {
+      hasPaymentForm: signals.payment.hasPaymentForm,
+      isFakeGateway: signals.payment.isFakeGatewayImpersonation,
+      formsCount: signals.forms.length,
+    });
+
     try {
       const response = await this.deduplicator.deduplicate(cacheKey, async (abortSignal) => {
         return await this.client.analyzePage(signals, abortSignal);
       });
 
       const decision = response.decision;
+      console.log('[Verdict Background] Decision received:', decision);
       this.activeDecisions.set(tabId, decision);
 
       // Record to history and update stats
@@ -243,6 +350,26 @@ export class ProtectionCoordinator {
       // Notify content script to update scanning pill / show warning
       this.dispatchDecisionToTab(tabId, decision);
 
+      // If decision is DANGER and URL is not in an active bypass, redirect browser tab to standalone firewall bridge
+      const isBypassed = this.isBypassed(targetUrl, tabId);
+      if (decision.status === 'DANGER' && !isBypassed) {
+        if (typeof chrome !== 'undefined' && chrome.tabs?.update && tabId > 0) {
+          const firewallUrl = chrome.runtime.getURL(
+            `firewall.html?target=${encodeURIComponent(targetUrl)}&title=${encodeURIComponent(decision.title)}&message=${encodeURIComponent(decision.message)}&decisionId=${encodeURIComponent(decision.decisionId || '')}`
+          );
+          try {
+            const updatePromise = chrome.tabs.update(tabId, { url: firewallUrl });
+            if (updatePromise && typeof updatePromise.catch === 'function') {
+              updatePromise.catch((err) => {
+                logger.debug('Tab redirect to firewall was superseded or aborted', { tabId, err });
+              });
+            }
+          } catch (err) {
+            logger.debug('Tab redirect threw exception', { tabId, err });
+          }
+        }
+      }
+
       return decision;
     } catch (error: unknown) {
       if (error instanceof Error && error.message.includes('aborted')) {
@@ -267,6 +394,22 @@ export class ProtectionCoordinator {
       return null;
     }
 
+    if (isSearchEngineUrl(url)) {
+      const searchDecision: VerdictDecision = {
+        status: 'SAFE',
+        title: 'Search Engine',
+        message: 'Search engine query pages are exempt from destination store analysis.',
+        action: 'NONE',
+        decisionId: `search-${tabId}-${Date.now()}`,
+        timestamp: Date.now(),
+        pageType: 'SEARCH_ENGINE',
+        reasons: [],
+      };
+      this.activeDecisions.set(tabId, searchDecision);
+      updateExtensionBadge(true, 'SAFE');
+      return searchDecision;
+    }
+
     if (isLocalhostUrl(url)) {
       const exemptDecision: VerdictDecision = {
         status: 'SAFE',
@@ -275,6 +418,8 @@ export class ProtectionCoordinator {
         action: 'NONE',
         decisionId: `local-${tabId}-${Date.now()}`,
         timestamp: Date.now(),
+        pageType: 'INTERNAL_BROWSER_PAGE',
+        reasons: [],
       };
       this.activeDecisions.set(tabId, exemptDecision);
       updateExtensionBadge(true, 'SAFE');

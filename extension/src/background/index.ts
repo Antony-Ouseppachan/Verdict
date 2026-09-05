@@ -16,8 +16,6 @@ if (typeof chrome !== 'undefined' && chrome.runtime) {
 
 // 2. Register Navigation listener
 navigationManager.setNavigationHandler((tabId, url) => {
-  // Cancel any prior stale request when navigation changes
-  protectionCoordinator.cancelTabAnalysis(tabId, url);
   // Automatically evaluate tab URL on navigation
   protectionCoordinator.analyzeUrl(tabId, url);
 });

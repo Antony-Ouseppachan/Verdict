@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { buildSync } from 'esbuild';
 
 export default defineConfig(({ mode }) => {
@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
             outfile: resolve(distDir, 'content.js'),
             bundle: true,
             format: 'iife',
-            minify: !isDev,
+            minify: false,
             sourcemap: isDev ? 'inline' : false,
             target: ['chrome100', 'edge100'],
             platform: 'browser',
@@ -60,23 +60,43 @@ export default defineConfig(({ mode }) => {
             outfile: resolve(distDir, 'background.js'),
             bundle: true,
             format: 'esm',
-            minify: !isDev,
+            minify: false,
             sourcemap: isDev ? 'inline' : false,
             target: ['chrome100', 'edge100'],
             platform: 'browser',
           });
+
+          // 5. Clean modulepreload tags from HTML (fixes Chrome extension cross-world resource warning)
+          for (const htmlFile of ['popup.html', 'dashboard.html', 'firewall.html']) {
+            const htmlPath = resolve(distDir, htmlFile);
+            if (existsSync(htmlPath)) {
+              let htmlContent = readFileSync(htmlPath, 'utf-8');
+              htmlContent = htmlContent.replace(/<link\s+rel=["']modulepreload["'][^>]*>\s*/gi, '');
+              writeFileSync(htmlPath, htmlContent, 'utf-8');
+            }
+          }
+
+          // 6. Mirror runtime scripts to root folder if needed
+          try {
+            copyFileSync(resolve(distDir, 'background.js'), resolve(__dirname, 'background.js'));
+            copyFileSync(resolve(distDir, 'content.js'), resolve(__dirname, 'content.js'));
+          } catch {
+            // ignore
+          }
         },
       },
     ],
     build: {
       outDir: 'dist',
       emptyOutDir: true,
+      modulePreload: false,
       sourcemap: isDev ? 'inline' : false,
       minify: !isDev,
       rollupOptions: {
         input: {
           popup: resolve(__dirname, 'popup.html'),
           dashboard: resolve(__dirname, 'dashboard.html'),
+          firewall: resolve(__dirname, 'firewall.html'),
         },
         output: {
           chunkFileNames: 'assets/[name]-[hash].js',

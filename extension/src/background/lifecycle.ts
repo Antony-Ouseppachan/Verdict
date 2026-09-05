@@ -13,6 +13,22 @@ export async function initializeLifecycle(): Promise<void> {
   const deviceId = await getOrCreateDeviceId();
   logger.info('Verdict autonomous agent initialized', { deviceId });
 
+  // Clean up any legacy persisted bypass keys from local storage
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    try {
+      chrome.storage.local.get(null, (items) => {
+        if (items) {
+          const bypassKeys = Object.keys(items).filter((k) => k.startsWith('bypass:'));
+          if (bypassKeys.length > 0) {
+            chrome.storage.local.remove(bypassKeys);
+          }
+        }
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   // Update extension action badge appearance
   updateExtensionBadge(currentState);
 }

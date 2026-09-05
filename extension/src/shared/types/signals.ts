@@ -31,6 +31,8 @@ export interface PaymentSignals {
   hasCheckoutButton: boolean;
   hasCartIndicator: boolean;
   currencySymbolsDetected: string[];
+  isFakeGatewayImpersonation?: boolean;
+  claimedGateways?: string[];
 }
 
 export interface NavigationSignals {

@@ -21,11 +21,50 @@ const ICONS = {
       <line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
   `,
+  alertTriangleRed: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  `,
   shieldAlert: `
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
       <line x1="12" y1="8" x2="12" y2="12"/>
       <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  `,
+  shieldAlertLarge: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  `,
+  arrowLeft: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m12 19-7-7 7-7"/>
+      <path d="M19 12H5"/>
+    </svg>
+  `,
+  arrowRight: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12h14"/>
+      <path d="m12 5 7 7-7 7"/>
+    </svg>
+  `,
+  lock: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  `,
+  creditCardBlocked: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="20" height="14" x="2" y="5" rx="2"/>
+      <line x1="2" x2="22" y1="10" y2="10"/>
+      <line x1="2" x2="22" y1="2" y2="22" stroke="#f87171" stroke-width="2.5"/>
     </svg>
   `,
   close: `
@@ -42,7 +81,81 @@ export class WarningOverlayManager {
   private autoDismissTimer: NodeJS.Timeout | null = null;
   private proximityCleanups: Array<() => void> = [];
 
+  private isFirewallLocked = false;
+  private detachedPageContent: Node[] = [];
+
+  private isolatePageDom(): void {
+    try {
+      if (typeof window !== 'undefined' && typeof window.stop === 'function') {
+        window.stop();
+      }
+      if (typeof document !== 'undefined' && document.body) {
+        const children = Array.from(document.body.childNodes);
+        this.detachedPageContent = [];
+        for (const child of children) {
+          if (child !== this.hostElement) {
+            this.detachedPageContent.push(child);
+            document.body.removeChild(child);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private restorePageDom(): void {
+    try {
+      if (typeof document !== 'undefined' && document.body && this.detachedPageContent.length > 0) {
+        for (const child of this.detachedPageContent) {
+          if (!document.body.contains(child)) {
+            document.body.appendChild(child);
+          }
+        }
+        this.detachedPageContent = [];
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private activateFirewallLock(): void {
+    if (this.isFirewallLocked) return;
+    this.isFirewallLocked = true;
+    try {
+      if (typeof document !== 'undefined') {
+        if (document.documentElement) {
+          document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+        }
+        if (document.body) {
+          document.body.style.setProperty('overflow', 'hidden', 'important');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private releaseFirewallLock(): void {
+    if (!this.isFirewallLocked) return;
+    this.isFirewallLocked = false;
+    try {
+      if (typeof document !== 'undefined') {
+        if (document.documentElement) {
+          document.documentElement.style.removeProperty('overflow');
+        }
+        if (document.body) {
+          document.body.style.removeProperty('overflow');
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   public removeWarning(): void {
+    this.releaseFirewallLock();
+    this.restorePageDom();
     if (this.autoDismissTimer) {
       clearTimeout(this.autoDismissTimer);
       this.autoDismissTimer = null;
@@ -63,15 +176,26 @@ export class WarningOverlayManager {
       const rect = pill.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) return;
 
-      const pillCenterX = rect.left + rect.width / 2;
-      const pillCenterY = rect.top + rect.height / 2;
-      const dist = Math.hypot(e.clientX - pillCenterX, e.clientY - pillCenterY);
+      // 60px proximity buffer around badge perimeter
+      const buffer = 60;
+      const isNear =
+        e.clientX >= rect.left - buffer &&
+        e.clientX <= rect.right + buffer &&
+        e.clientY >= rect.top - buffer &&
+        e.clientY <= rect.bottom + buffer;
 
-      // If mouse is within 80px radius of the pill, ghost it away completely
-      if (dist < 80) {
+      if (isNear) {
         pill.classList.add('is-evading');
+        pill.style.setProperty('opacity', '0', 'important');
+        pill.style.setProperty('visibility', 'hidden', 'important');
+        pill.style.setProperty('pointer-events', 'none', 'important');
+        pill.style.setProperty('transform', 'translateY(-6px) scale(0.92)', 'important');
       } else {
         pill.classList.remove('is-evading');
+        pill.style.removeProperty('opacity');
+        pill.style.removeProperty('visibility');
+        pill.style.removeProperty('pointer-events');
+        pill.style.removeProperty('transform');
       }
     };
 
@@ -203,6 +327,8 @@ export class WarningOverlayManager {
 
     if (decision.status === 'DANGER') {
       this.removeWarning();
+      this.isolatePageDom();
+      this.activateFirewallLock();
       const newShadow = this.ensureShadowRoot();
 
       if (this.hostElement) {
@@ -218,20 +344,88 @@ export class WarningOverlayManager {
       backdrop.setAttribute('aria-modal', 'true');
       backdrop.setAttribute('aria-label', decision.title || 'Security Warning');
 
+      let hostDisplay = 'Suspicious Domain';
+      try {
+        if (typeof window !== 'undefined' && window.location) {
+          hostDisplay = window.location.hostname || window.location.host || 'Protected Session';
+        }
+      } catch {
+        // ignore
+      }
+
+      const defaultEvidence = [
+        'Unverified merchant identity or counterfeit brand signature detected',
+        'Unauthorized credential or payment transmission vector intercepted',
+        'Zero-Trust isolation enforced: high threat confidence score',
+      ];
+
+      const reasonsList = decision.reasons && decision.reasons.length > 0
+        ? decision.reasons.map((r) => `
+            <div class="verdict-danger-reason-item">
+              <span class="verdict-reason-bullet"></span>
+              <span>${r.signal ? `<strong>${this.escapeHtml(r.signal.replace(/_/g, ' '))}: </strong>` : ''}${this.escapeHtml(r.evidence)}</span>
+            </div>
+          `).join('')
+        : defaultEvidence.map((ev) => `
+            <div class="verdict-danger-reason-item">
+              <span class="verdict-reason-bullet"></span>
+              <span>${this.escapeHtml(ev)}</span>
+            </div>
+          `).join('');
+
       backdrop.innerHTML = `
         <div class="verdict-danger-card">
-          <div class="verdict-danger-icon" aria-hidden="true">
-            ${ICONS.shieldAlert}
+          <div class="verdict-danger-header">
+            <div class="verdict-danger-shield-wrapper">
+              <div class="verdict-danger-shield-pulse"></div>
+              <div class="verdict-danger-shield-icon" aria-hidden="true">
+                ${ICONS.shieldAlertLarge}
+              </div>
+            </div>
           </div>
+
           <h1 class="verdict-danger-title">${this.escapeHtml(decision.title || t('warnings', 'dangerTitle'))}</h1>
           <p class="verdict-danger-desc">${this.escapeHtml(decision.message || t('warnings', 'dangerDefaultMessage'))}</p>
+
+          <div class="verdict-danger-payment-warning">
+            <div class="verdict-payment-warning-icon" aria-hidden="true">
+              ${ICONS.creditCardBlocked}
+            </div>
+            <div class="verdict-payment-warning-content">
+              <span class="verdict-payment-warning-title">PAYMENT &amp; FINANCIAL HAZARD</span>
+              <span class="verdict-payment-warning-text">DO NOT MAKE ANY PAYMENTS OR ENTER CREDIT CARD / BANKING DETAILS ON THIS SITE. VERDICT CANNOT GUARANTEE FINANCIAL SAFETY.</span>
+            </div>
+          </div>
+
+          <div class="verdict-danger-target-pill">
+            ${ICONS.lock}
+            <span class="verdict-target-domain">${this.escapeHtml(hostDisplay)}</span>
+            <span class="verdict-target-status">ISOLATED</span>
+          </div>
+
+          <div class="verdict-danger-intel-box">
+            <div class="verdict-intel-header">
+              <span class="verdict-intel-tag">// VERDICT THREAT TELEMETRY</span>
+              <span class="verdict-intel-risk-level">HIGH RISK</span>
+            </div>
+            <div class="verdict-danger-reasons">
+              ${reasonsList}
+            </div>
+          </div>
+
           <div class="verdict-danger-actions">
             <button class="verdict-btn verdict-btn-primary" id="verdict-back-btn">
-              ${t('warnings', 'takeMeBack')}
+              ${ICONS.arrowLeft}
+              <span>${t('warnings', 'takeMeBack')} (Recommended)</span>
             </button>
             <button class="verdict-btn verdict-btn-secondary" id="verdict-override-btn">
-              ${t('warnings', 'understandRisk')}
+              <span>${t('warnings', 'understandRisk')}</span>
+              ${ICONS.arrowRight}
             </button>
+          </div>
+
+          <div class="verdict-danger-footer">
+            <span>🛡️ VERDICT protected and secured</span>
           </div>
         </div>
       `;
@@ -240,13 +434,19 @@ export class WarningOverlayManager {
       const overrideBtn = backdrop.querySelector('#verdict-override-btn') as HTMLButtonElement | null;
 
       if (backBtn) {
-        backBtn.addEventListener('click', () => onTakeMeBack());
+        backBtn.addEventListener('click', () => {
+          this.releaseFirewallLock();
+          onTakeMeBack();
+        });
         setTimeout(() => backBtn.focus(), 50);
       }
 
       if (overrideBtn) {
         overrideBtn.addEventListener('click', () => {
+          this.restorePageDom();
+          this.releaseFirewallLock();
           this.removeWarning();
+          this.showPersistentUnsafePill(decision);
           onDismiss();
         });
       }
@@ -275,6 +475,7 @@ export class WarningOverlayManager {
       `;
 
       this.attachPassthroughForwarder(pill);
+      this.initProximityEvasion(pill);
 
       if (this.autoDismissTimer) {
         clearTimeout(this.autoDismissTimer);
@@ -315,6 +516,38 @@ export class WarningOverlayManager {
         }
       }, 4000);
     }
+  }
+
+  public showPersistentUnsafePill(_decision?: VerdictDecision): void {
+    if (this.autoDismissTimer) {
+      clearTimeout(this.autoDismissTimer);
+      this.autoDismissTimer = null;
+    }
+
+    const shadow = this.ensureShadowRoot();
+
+    const existingPill = shadow.querySelector('.verdict-floating-pill');
+    if (existingPill) existingPill.remove();
+
+    const pill = document.createElement('div');
+    pill.className = 'verdict-floating-pill status-danger';
+    pill.setAttribute('role', 'status');
+    pill.setAttribute('aria-live', 'assertive');
+    pill.style.setProperty('pointer-events', 'none', 'important');
+
+    pill.innerHTML = `
+      <div class="verdict-pill-icon danger" aria-hidden="true">
+        ${ICONS.alertTriangleRed}
+      </div>
+      <div class="verdict-pill-text">
+        <span class="verdict-pill-title">Verdict</span>
+        <span class="verdict-pill-subtitle danger-text">Unsafe</span>
+      </div>
+    `;
+
+    this.attachPassthroughForwarder(pill);
+    this.initProximityEvasion(pill);
+    shadow.appendChild(pill);
   }
 
   public render(

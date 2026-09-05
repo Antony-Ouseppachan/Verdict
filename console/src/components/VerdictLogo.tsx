@@ -3,13 +3,13 @@ import React from 'react';
 interface VerdictLogoProps {
   size?: number;
   className?: string;
-  glow?: boolean;
+  showGlow?: boolean;
 }
 
 export const VerdictLogo: React.FC<VerdictLogoProps> = ({
-  size = 24,
+  size = 32,
   className = '',
-  glow = false,
+  showGlow = true,
 }) => {
   return (
     <svg
@@ -19,42 +19,47 @@ export const VerdictLogo: React.FC<VerdictLogoProps> = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      style={{
-        display: 'inline-block',
-        verticalAlign: 'middle',
-        filter: glow ? 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.5))' : undefined,
-        flexShrink: 0,
-      }}
-      aria-hidden="true"
     >
       <defs>
-        <linearGradient id="verdictShieldGradConsole" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#10b981" />
+        <linearGradient id="verdictGreenGrad" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#10B981" />
           <stop offset="100%" stopColor="#059669" />
         </linearGradient>
-        <linearGradient id="verdictInnerGradConsole" x1="16" y1="7" x2="16" y2="25" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#10b981" />
+        <linearGradient id="verdictVGrad" x1="16" y1="7" x2="16" y2="25" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#34D399" />
+          <stop offset="100%" stopColor="#10B981" />
         </linearGradient>
+        {showGlow && (
+          <filter id="logoGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.5" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        )}
       </defs>
 
-      {/* Outer Shield Contour */}
+      {/* Outer Shield Outline */}
       <path
         d="M16 2.5L27 6.5V14.5C27 21.8 22.3 27.8 16 29.5C9.7 27.8 5 21.8 5 14.5V6.5L16 2.5Z"
-        fill="#0b1322"
-        stroke="url(#verdictShieldGradConsole)"
-        strokeWidth="2"
+        fill="#04080D"
+        stroke="url(#verdictGreenGrad)"
+        strokeWidth="2.2"
         strokeLinejoin="round"
+        filter={showGlow ? 'url(#logoGlow)' : undefined}
       />
 
-      {/* High-Contrast Bold V-Emblem */}
+      {/* Top Dot Above V */}
+      <circle
+        cx="16"
+        cy="7.8"
+        r="1.8"
+        fill="#34D399"
+      />
+
+      {/* Stylized V Logo Mark */}
       <path
-        d="M11 10.5L16 21L21 10.5H18.2L16 16.2L13.8 10.5H11Z"
-        fill="url(#verdictInnerGradConsole)"
+        d="M10.5 11.2L16 22.2L21.5 11.2H18.4L16 16.8L13.6 11.2H10.5Z"
+        fill="url(#verdictVGrad)"
       />
-
-      {/* Apex Core Highlight */}
-      <circle cx="16" cy="7.5" r="1.5" fill="#34d399" />
     </svg>
   );
 };

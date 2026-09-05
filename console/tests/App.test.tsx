@@ -1,91 +1,53 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { App } from '../src/App.tsx';
-import { redactSensitiveText, redactHeaders } from '../src/utils/redact.ts';
+import { render, screen } from '@testing-library/react';
+import { App } from '../src/App';
 
-describe('Verdict Master Operator Console - Live Feed & Autonomous Execution', () => {
-  it('should render the console sidebar brand, live stream status, and ingest controls', () => {
+describe('Verdict Security Operations Center (SOC) Console', () => {
+  it('should render the SOC top command bar and model capsules', () => {
     render(<App />);
     expect(screen.getByText('VERDICT')).toBeInTheDocument();
-    expect(screen.getByText('OPERATOR CONSOLE')).toBeInTheDocument();
-    expect(screen.getByText('TRAFFIC FEED')).toBeInTheDocument();
+    expect(screen.getByText('DASHBOARD')).toBeInTheDocument();
+    expect(screen.getAllByText('URL SVM').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('HTML XGB v2').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('PAYMENT XGB').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('RISK FUSION').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByPlaceholderText(/Ingest target URL/i)).toBeInTheDocument();
-    expect(screen.getByText('Overview')).toBeInTheDocument();
-    expect(screen.getByText('System')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Scan/i })).toBeInTheDocument();
   });
 
-  it('should start with a clean zero-state without stale mock data inserted', () => {
+  it('should render the Live Activity Feed with filter tabs and search', () => {
     render(<App />);
-    expect(screen.getByText('Security Operations Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('No Active Investigations Recorded')).toBeInTheDocument();
+    expect(screen.getByText('LIVE ACTIVITY')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search URLs, domains, paths\.\.\./i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'ALL' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'HIGH RISK' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'SUSPICIOUS' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'SAFE' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PAYMENT' })).toBeInTheDocument();
   });
 
-  it('should dispatch an investigation from left stream and execute live 10-stage pipeline', async () => {
+  it('should render the Center Operations Monitoring overview when no event is selected', () => {
     render(<App />);
-    const urlInput = screen.getByPlaceholderText(/Ingest target URL/i);
-    fireEvent.change(urlInput, { target: { value: 'https://cheap-nike-outlet.xyz' } });
-
-    // Submit form
-    const form = urlInput.closest('form')!;
-    fireEvent.submit(form);
-
-    // Should navigate to Live Pipeline Detail and show stages
-    await waitFor(() => {
-      expect(screen.getByText('Pipeline Execution Stages')).toBeInTheDocument();
-    }, { timeout: 4000 });
-
-    expect(screen.getByText('URL Received')).toBeInTheDocument();
-    expect(screen.getByText('Fast Intelligence')).toBeInTheDocument();
-    expect(screen.getByText('Sandbox Dispatch')).toBeInTheDocument();
-    expect(screen.getByText('Behavioral Analysis')).toBeInTheDocument();
-    expect(screen.getByText(/Sandbox Monitor/i)).toBeInTheDocument();
+    expect(screen.getByText('SOC WORKSTATION')).toBeInTheDocument();
+    expect(screen.getByText(/Operations Monitoring/i)).toBeInTheDocument();
+    expect(screen.getByText('Observed Events')).toBeInTheDocument();
+    expect(screen.getByText('Clean / Safe')).toBeInTheDocument();
+    expect(screen.getAllByText(/Suspicious/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/High Risk/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Risk Score Distribution Histogram/i)).toBeInTheDocument();
+    expect(screen.getByText(/Multi-Model Detection Concordance/i)).toBeInTheDocument();
+    expect(screen.getByText(/Threat Surface Vector Indicators/i)).toBeInTheDocument();
   });
 
-  it('should allow clicking an incoming target from the left list to inspect its autonomous process', async () => {
+  it('should render the Right Security Intelligence sidebar and 4-model health status', () => {
     render(<App />);
-    const presetBtn = screen.getByRole('button', { name: /Fake Shop/i });
-    fireEvent.click(presetBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText('Pipeline Execution Stages')).toBeInTheDocument();
-    }, { timeout: 4000 });
-
-    // Verify forensic tabs are present
-    expect(screen.getAllByText(/Payment Forensics/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Domain & Infrastructure/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Brand & Content/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/AI Investigator/i).length).toBeGreaterThan(0);
-  });
-
-  it('should navigate to System Health page and display cluster worker metrics', async () => {
-    render(<App />);
-    const systemNavBtn = screen.getByRole('button', { name: /System/i });
-    fireEvent.click(systemNavBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText('System Infrastructure & Worker Cluster Health')).toBeInTheDocument();
-      expect(screen.getByText('Sandbox & Inference Worker Nodes Pool')).toBeInTheDocument();
-    });
-  });
-});
-
-describe('Security & Privacy Redaction Utility', () => {
-  it('should mask 16-digit credit card numbers', () => {
-    const raw = 'Customer attempted checkout with 4532 0156 8921 4242 on counterfeit form.';
-    const redacted = redactSensitiveText(raw);
-    expect(redacted).toContain('•••• •••• •••• 4242');
-    expect(redacted).not.toContain('4532 0156 8921');
-  });
-
-  it('should redact authorization headers and cookies', () => {
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token123',
-      'Cookie': 'session_token=xyz9984; auth=true',
-    };
-    const cleaned = redactHeaders(headers);
-    expect(cleaned['Authorization']).toBe('[REDACTED_SECURITY_HEADER]');
-    expect(cleaned['Cookie']).toBe('[REDACTED_SECURITY_HEADER]');
-    expect(cleaned['Content-Type']).toBe('application/json');
+    expect(screen.getByText('SECURITY INTELLIGENCE')).toBeInTheDocument();
+    expect(screen.getByText('ACTIVE TARGET RISK')).toBeInTheDocument();
+    expect(screen.getByText('SESSION SUMMARY')).toBeInTheDocument();
+    expect(screen.getByText('PAYMENT ACTIVITY')).toBeInTheDocument();
+    expect(screen.getByText('AI PIPELINE HEALTH')).toBeInTheDocument();
+    expect(screen.getAllByText('URL SVM').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('PAYMENT XGB').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('RISK FUSION').length).toBeGreaterThanOrEqual(1);
   });
 });

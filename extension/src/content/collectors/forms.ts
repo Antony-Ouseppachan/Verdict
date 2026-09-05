@@ -29,6 +29,8 @@ export function collectFormMetadata(doc: Document = document): FormMetadata[] {
     const inputs = inputElements.slice(0, 20).map((el) => {
       const type = (el.getAttribute('type') || el.tagName.toLowerCase()).toLowerCase();
       const nameAttribute = el.getAttribute('name') || undefined;
+      const idAttribute = el.getAttribute('id') || undefined;
+      const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
       const autocomplete = el.getAttribute('autocomplete') || undefined;
       const isRequired = el.hasAttribute('required');
 
@@ -36,10 +38,17 @@ export function collectFormMetadata(doc: Document = document): FormMetadata[] {
         hasPasswordField = true;
       }
 
-      if (
+      const isPaymentNamed =
         (nameAttribute && PAYMENT_INPUT_NAMES.some((pn) => nameAttribute.toLowerCase().includes(pn))) ||
-        (autocomplete && autocomplete.toLowerCase().includes('cc-'))
-      ) {
+        (idAttribute && PAYMENT_INPUT_NAMES.some((pn) => idAttribute.toLowerCase().includes(pn))) ||
+        (autocomplete && autocomplete.toLowerCase().includes('cc-')) ||
+        placeholder.includes('1234') ||
+        placeholder.includes('•••') ||
+        placeholder.includes('cvv') ||
+        placeholder.includes('cvc') ||
+        placeholder.includes('mm/yy');
+
+      if (isPaymentNamed) {
         hasPaymentFields = true;
       }
 

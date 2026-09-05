@@ -1,6 +1,7 @@
 import { NAVIGATION_DEBOUNCE_MS } from '../shared/constants/index.ts';
 import { isValidBrowsingUrl } from '../security/url.ts';
 import { logger } from '../shared/utils/logger.ts';
+import { protectionCoordinator } from './protection.ts';
 
 type NavigationCallback = (tabId: number, url: string) => void;
 
@@ -41,6 +42,7 @@ export class NavigationManager {
 
     chrome.tabs.onRemoved.addListener((tabId) => {
       this.clearTab(tabId);
+      protectionCoordinator.clearTab(tabId);
     });
   }
 

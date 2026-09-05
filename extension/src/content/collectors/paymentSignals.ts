@@ -39,10 +39,16 @@ export function collectPaymentSignals(doc: Document = document): PaymentSignals 
   }
 
   // 2. Detect payment forms
+  const hasCardInputs =
+    doc.querySelector(
+      'input[name*="card" i], input[name*="cvv" i], input[name*="cvc" i], input[autocomplete*="cc-" i], input[placeholder*="1234" i], input[placeholder*="•••" i]'
+    ) !== null;
+
   const hasPaymentForm =
     detectedGateways.size > 0 ||
+    hasCardInputs ||
     doc.querySelector(
-      'form[action*="checkout"], form[action*="pay"], form[class*="checkout"], form[id*="checkout"]'
+      'form[action*="checkout"], form[action*="pay"], form[class*="checkout"], form[id*="checkout"], form[class*="payment"], form[id*="payment"]'
     ) !== null;
 
   // 3. Detect checkout buttons
@@ -62,11 +68,44 @@ export function collectPaymentSignals(doc: Document = document): PaymentSignals 
     bodyTextSample.includes(symbol)
   );
 
+  // 6. Detect fake gateway impersonation (claimed branding without official SDK)
+  const claimedGateways = new Set<string>();
+  const lowerBodyText = bodyTextSample.toLowerCase();
+  const images = Array.from(doc.querySelectorAll('img, svg, [class*="logo" i]'));
+
+  for (const gateway of Object.keys(KNOWN_GATEWAY_PATTERNS)) {
+    const gwLower = gateway.toLowerCase();
+    const hasTextClaim = lowerBodyText.includes(gwLower);
+    const hasImgClaim = images.some((img) => {
+      const alt = (img.getAttribute('alt') || '').toLowerCase();
+      const src = (img.getAttribute('src') || '').toLowerCase();
+      const className = (img.getAttribute('class') || '').toLowerCase();
+      return alt.includes(gwLower) || src.includes(gwLower) || className.includes(gwLower);
+    });
+
+    if (hasTextClaim || hasImgClaim) {
+      claimedGateways.add(gateway);
+    }
+  }
+
+  const isFakeGatewayImpersonation =
+    claimedGateways.size > 0 &&
+    Array.from(claimedGateways).some((gw) => !detectedGateways.has(gw));
+
+  if (isFakeGatewayImpersonation) {
+    console.log('[Verdict] Fake payment gateway impersonation detected:', {
+      claimed: Array.from(claimedGateways),
+      verifiedSDKs: Array.from(detectedGateways),
+    });
+  }
+
   return {
     hasPaymentForm,
     detectedGateways: Array.from(detectedGateways),
     hasCheckoutButton,
     hasCartIndicator,
     currencySymbolsDetected,
+    isFakeGatewayImpersonation,
+    claimedGateways: Array.from(claimedGateways),
   };
 }

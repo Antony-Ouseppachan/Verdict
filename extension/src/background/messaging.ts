@@ -117,13 +117,46 @@ export function registerMessageHandlers(): void {
         return false;
       }
 
+      case 'ALLOW_BYPASS': {
+        protectionCoordinator.allowBypassUrl(msg.payload.url, tabId);
+        if (msg.payload.decisionId) {
+          protectionCoordinator.dismissWarning(msg.payload.decisionId);
+        }
+        sendResponse({ success: true });
+        return false;
+      }
+
+      case 'CHECK_BYPASS': {
+        const isBypassed = protectionCoordinator.isBypassed(msg.payload.url, tabId);
+        sendResponse({ success: true, data: { isBypassed } });
+        return false;
+      }
+
+      case 'CLEAR_BYPASS': {
+        protectionCoordinator.clearBypass(msg.payload.url, tabId);
+        sendResponse({ success: true });
+        return false;
+      }
+
       case 'NAVIGATE_BACK': {
-        if (tabId !== undefined && chrome.tabs) {
-          chrome.tabs.goBack(tabId, () => {
-            if (chrome.runtime.lastError) {
-              chrome.tabs.remove(tabId);
+        if (tabId !== undefined && typeof chrome !== 'undefined' && chrome.tabs) {
+          try {
+            chrome.tabs
+              .goBack(tabId)
+              .catch(() => {
+                try {
+                  chrome.tabs.remove(tabId).catch(() => {});
+                } catch {
+                  // ignore
+                }
+              });
+          } catch {
+            try {
+              chrome.tabs.remove(tabId).catch(() => {});
+            } catch {
+              // ignore
             }
-          });
+          }
         }
         sendResponse({ success: true });
         return false;

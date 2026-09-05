@@ -1,89 +1,52 @@
-# Verdict
+# 🛡️ Verdict — Real-Time Autonomous Neural Defense Platform
 
-**Verdict** is an autonomous browser safety and security product designed with a single core philosophy:
-
-> **"The user should never have to think."**
-
-Verdict acts as an invisible safety layer during daily web browsing. It observes contextual risk signals, sanitizes and normalizes them, communicates with the central Verdict Decision Engine, and takes silent or gentle action only when necessary.
+**Verdict** is a next-generation browser threat defense platform designed to protect users in real-time from counterfeit e-commerce shops, brand impersonation phishing, credential harvesters, and rogue payment gateways.
 
 ---
 
-## System Architecture
-
-The complete Verdict product consists of three coordinated subsystems:
-
-```mermaid
-flowchart TD
-    subgraph Browser ["User Browser"]
-        Agent["Verdict Chrome Extension\n(Autonomous Agent / Sensor)"]
-    end
-
-    subgraph CoreBackend ["Verdict Cloud Infrastructure"]
-        Backend["Verdict Backend\n(Intelligence, ML, Decision Engine)"]
-    end
-
-    subgraph Management ["Verdict Management Web App"]
-        WebApp["Verdict Web Application\n(Account, Family Shield, Settings)"]
-    end
-
-    Agent -- "1. Sanitized Signals" --> Backend
-    Backend -- "2. Verdict Decision (SAFE / CAUTION / DANGER)" --> Agent
-    Agent -- "3. Minimal Action (Silent / Warn)" --> Browser
-    WebApp -- "Configure Policies / Alerts" --> Backend
-```
-
-### Component Breakdown
-
-1. **`extension/` (Chrome Extension)**:
-   - Autonomous browser agent and sensor.
-   - Observes browser and page lifecycle events.
-   - Collects minimal structural metadata (no passwords, card numbers, or raw HTML).
-   - Sanitizes and transmits telemetry to the decision engine.
-   - Enforces decisions via silent continuation or unobtrusive, accessible warning overlays.
-   
-2. **`backend/` (Verdict Backend)**:
-   - Owns intelligence, brand impersonation detection, ML models, threat databases, and decision generation.
-   
-3. **`web/` (Verdict Web Application)**:
-   - Manages user account, protection history, devices, Family Shield, and policy configurations.
-
-4. **`console/` (Verdict Operator Console)**:
-   - Dedicated internal operator interface for monitoring sandboxing sessions, queues, ML heuristics, and system telemetry.
-
----
-
-## Monorepo Layout
+## 📦 System Architecture
 
 ```
-verdict/
-├── extension/          # Chrome Extension Manifest V3 source and tests
-├── web/                # Verdict Web Application
-├── backend/            # Verdict Intelligence Backend
-├── console/            # Verdict Operator Console
-├── docs/               # Architecture and security specifications
-├── .github/workflows/  # CI/CD pipelines
-├── .gitignore          # Root git ignore
-└── README.md           # This document
+Verdict/
+├── backend/      # FastAPI AI Inference Decision Engine (Port 8000) with 4-Model ML Pipeline
+├── console/      # Cyber-SOC Security Operations Center Console (Vite + React, Port 5174)
+├── extension/    # Manifest V3 Chrome Defense Extension & Standalone Firewall Quarantine
+├── models/       # Trained ML Models (URL SVM, HTML XGBoost V2, Payment XGBoost, Risk Fusion)
+└── docs/         # System specifications, threat vectors, and API contracts
 ```
 
 ---
 
-## Quick Start (Extension)
+## 🚀 Quick Start Guide
 
-To develop and test the extension locally:
+### 1. Start the Backend AI Engine
+```bash
+cd backend
+.venv\Scripts\activate
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
+### 2. Launch the SOC Workstation Console
+```bash
+cd console
+npm install
+npm run dev
+# Opens SOC workstation at http://localhost:5174
+```
+
+### 3. Load the Chrome Defense Extension
+Detailed setup and usage instructions are provided in the [Extension Documentation](file:///d:/BCA/Verdict/extension/README.md):
 ```bash
 cd extension
 npm install
-npm run dev
-```
-
-To build and package for distribution:
-
-```bash
-cd extension
 npm run build
-npm run package
 ```
+1. Open Google Chrome and navigate to `chrome://extensions`.
+2. Toggle **Developer mode** to ON.
+3. Click **Load unpacked** and select the `d:/BCA/Verdict/extension` directory.
 
-Refer to [`extension/README.md`](file:///d:/BCA/Verdict/extension/README.md) for full developer documentation.
+---
+
+## 📚 Component Documentation
+- [Chrome Extension Setup & Usage Guide](file:///d:/BCA/Verdict/extension/README.md)
+- [Backend Decision Engine Guide](file:///d:/BCA/Verdict/backend/README.md)

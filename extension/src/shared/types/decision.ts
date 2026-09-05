@@ -2,6 +2,20 @@ export type VerdictEngineStatus = 'SAFE' | 'CAUTION' | 'DANGER';
 
 export type VerdictAction = 'NONE' | 'WARN' | 'GO_BACK';
 
+export type PageType =
+  | 'SEARCH_ENGINE'
+  | 'NORMAL_WEBSITE'
+  | 'INTERNAL_BROWSER_PAGE'
+  | 'UNSUPPORTED_PAGE';
+
+export type EvidenceSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface DecisionReason {
+  signal: string;
+  severity: EvidenceSeverity;
+  evidence: string;
+}
+
 export interface VerdictDecision {
   status: VerdictEngineStatus;
   title: string;
@@ -10,6 +24,8 @@ export interface VerdictDecision {
   explanationAvailable?: boolean;
   decisionId?: string;
   timestamp?: number;
+  reasons?: DecisionReason[];
+  pageType?: PageType;
 }
 
 export interface VerdictAnalysisResponse {

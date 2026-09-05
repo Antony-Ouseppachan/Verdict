@@ -2,6 +2,19 @@ import { z } from 'zod';
 
 export const VerdictEngineStatusSchema = z.enum(['SAFE', 'CAUTION', 'DANGER']);
 export const VerdictActionSchema = z.enum(['NONE', 'WARN', 'GO_BACK']);
+export const PageTypeSchema = z.enum([
+  'SEARCH_ENGINE',
+  'NORMAL_WEBSITE',
+  'INTERNAL_BROWSER_PAGE',
+  'UNSUPPORTED_PAGE',
+]);
+export const EvidenceSeveritySchema = z.enum(['HIGH', 'MEDIUM', 'LOW']);
+
+export const DecisionReasonSchema = z.object({
+  signal: z.string().min(1),
+  severity: EvidenceSeveritySchema,
+  evidence: z.string(),
+});
 
 export const VerdictDecisionSchema = z.object({
   status: VerdictEngineStatusSchema,
@@ -11,6 +24,8 @@ export const VerdictDecisionSchema = z.object({
   explanationAvailable: z.boolean().optional(),
   decisionId: z.string().optional(),
   timestamp: z.number().optional(),
+  reasons: z.array(DecisionReasonSchema).optional(),
+  pageType: PageTypeSchema.optional(),
 });
 
 export const PageSignalsSchema = z.object({
@@ -46,6 +61,8 @@ export const PaymentSignalsSchema = z.object({
   hasCheckoutButton: z.boolean(),
   hasCartIndicator: z.boolean(),
   currencySymbolsDetected: z.array(z.string()),
+  isFakeGatewayImpersonation: z.boolean().optional(),
+  claimedGateways: z.array(z.string()).optional(),
 });
 
 export const NavigationSignalsSchema = z.object({
@@ -112,6 +129,25 @@ export const ExtensionMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('DISMISS_WARNING'),
     payload: z.object({ decisionId: z.string().optional() }).optional(),
+  }),
+  z.object({
+    type: z.literal('ALLOW_BYPASS'),
+    payload: z.object({
+      url: z.string(),
+      decisionId: z.string().optional(),
+    }),
+  }),
+  z.object({
+    type: z.literal('CHECK_BYPASS'),
+    payload: z.object({
+      url: z.string(),
+    }),
+  }),
+  z.object({
+    type: z.literal('CLEAR_BYPASS'),
+    payload: z.object({
+      url: z.string(),
+    }),
   }),
   z.object({ type: z.literal('NAVIGATE_BACK') }),
 ]);

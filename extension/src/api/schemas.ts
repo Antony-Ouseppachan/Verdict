@@ -23,6 +23,8 @@ export const AnalyzePageResponseSchema = z.preprocess(
             explanationAvailable: Boolean(obj.explanationAvailable),
             decisionId: typeof obj.decisionId === 'string' ? obj.decisionId : undefined,
             timestamp: typeof obj.timestamp === 'number' ? obj.timestamp : Date.now(),
+            reasons: Array.isArray(obj.reasons) ? obj.reasons : undefined,
+            pageType: typeof obj.pageType === 'string' ? obj.pageType : undefined,
           },
           requestId: typeof obj.requestId === 'string' ? obj.requestId : `req-${Date.now()}`,
           cached: Boolean(obj.cached),

@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, ShieldCheck, Bell, Eye, Lock, Globe, Scan } from 'lucide-react';
+import { ShieldCheck, Bell, Eye, Lock, Scan } from 'lucide-react';
 import {
   getOverlayState,
   setOverlayState,
   onOverlayStateChanged,
 } from '../../storage/overlayState.ts';
-import { env } from '../../config/environment.ts';
 
 interface SettingsPageProps {
   protectionEnabled: boolean;
@@ -47,15 +46,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         type: 'SET_OVERLAY_STATE',
         payload: { enabled: nextVal },
       });
-    }
-  };
-
-  const handleOpenWebsite = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
-      chrome.tabs.create({ url: env.settingsUrl });
-    } else {
-      window.open(env.settingsUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -106,7 +96,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </button>
         </div>
 
-        {/* 2. Notifications */}
+        {/* 3. Notifications */}
         <div className="settings-row">
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <Bell size={20} color="var(--text-secondary)" aria-hidden="true" />
@@ -128,7 +118,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </button>
         </div>
 
-        {/* 3. Appearance */}
+        {/* 4. Appearance */}
         <div className="settings-row">
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <Eye size={20} color="var(--text-secondary)" aria-hidden="true" />
@@ -150,7 +140,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </button>
         </div>
 
-        {/* 4. Privacy & Data Minimization */}
+        {/* 5. Privacy & Data Minimization */}
         <div className="settings-row">
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <Lock size={20} color="var(--color-safe)" aria-hidden="true" />
@@ -175,29 +165,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           >
             Enforced
           </span>
-        </div>
-
-        {/* 5. Account Link */}
-        <div className="settings-row">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <Globe size={20} color="var(--text-secondary)" aria-hidden="true" />
-            <div className="settings-info">
-              <span className="settings-label">Verdict Account & Cloud Sync</span>
-              <span className="settings-desc">
-                Manage cloud backups, subscription tiers, and family group settings on the web.
-              </span>
-            </div>
-          </div>
-
-          <a
-            href={env.settingsUrl}
-            onClick={handleOpenWebsite}
-            className="btn btn-primary"
-            style={{ fontSize: 'var(--font-size-xs)' }}
-          >
-            <span>Open Verdict Web</span>
-            <ExternalLink size={12} />
-          </a>
         </div>
       </div>
     </div>

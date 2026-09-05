@@ -84,6 +84,28 @@ export interface SetOverlayStateMessage {
   };
 }
 
+export interface AllowBypassMessage {
+  type: 'ALLOW_BYPASS';
+  payload: {
+    url: string;
+    decisionId?: string;
+  };
+}
+
+export interface CheckBypassMessage {
+  type: 'CHECK_BYPASS';
+  payload: {
+    url: string;
+  };
+}
+
+export interface ClearBypassMessage {
+  type: 'CLEAR_BYPASS';
+  payload: {
+    url: string;
+  };
+}
+
 export type ExtensionMessage =
   | CollectSignalsMessage
   | SignalsCollectedMessage
@@ -97,7 +119,10 @@ export type ExtensionMessage =
   | ClearHistoryMessage
   | ShowDecisionMessage
   | DismissWarningMessage
-  | NavigateBackMessage;
+  | NavigateBackMessage
+  | AllowBypassMessage
+  | CheckBypassMessage
+  | ClearBypassMessage;
 
 export interface DashboardData {
   protectionEnabled: boolean;

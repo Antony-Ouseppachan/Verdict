@@ -4,10 +4,8 @@ import {
   Clock,
   Laptop,
   Settings,
-  ArrowUpRight,
 } from 'lucide-react';
 import { VerdictLogo } from '../../shared/components/VerdictLogo.tsx';
-import { env } from '../../config/environment.ts';
 
 export type DashboardTab = 'overview' | 'history' | 'devices' | 'settings';
 
@@ -22,15 +20,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   protectionEnabled,
 }) => {
-  const handleAccountClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
-      chrome.tabs.create({ url: env.settingsUrl });
-    } else {
-      window.open(env.settingsUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
-
   return (
     <aside className="dashboard-sidebar" aria-label="Dashboard Navigation">
       <div className="sidebar-header">
@@ -84,16 +73,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           />
           <span>{protectionEnabled ? 'Protection Active' : 'Protection Paused'}</span>
         </div>
-
-        <a
-          href={env.settingsUrl}
-          onClick={handleAccountClick}
-          className="sidebar-account-link"
-          aria-label="Open Verdict Account on website"
-        >
-          <span>Account & Cloud</span>
-          <ArrowUpRight size={14} aria-hidden="true" />
-        </a>
       </div>
     </aside>
   );
